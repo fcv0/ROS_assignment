@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <arg name="file" default="$(find uol_cmp9767m_tutorial)/maps/test.tmap2"/>
+    <!-- Robot base frame. -->
+    <arg name="base_frame" default="thorvald_001/base_link" />
+    <!-- The planner being used by move_base. STRANDS systems tend to use DWAPlannerROS Jackal and HSR TrajectoryPlannerROS.  -->
+    <arg name="move_base_planner" default="move_base/DWAPlannerROS"/>
+
+	<group ns="thorvald_001">
+		<!-- launch robot_pose_publisher -->
+		<node pkg="robot_pose_publisher" type="robot_pose_publisher" name="robot_pose_publisher" respawn="true">
+			<param name="~map_frame" value="map"/>
+			<param name="~base_frame" value="thorvald_001"/>
+		</node>
+		
+		<!-- move_base -->
+		<node name="move_base" pkg="move_base" type="move_base" output="screen">
+	        <remap from="odom" to="odometry/base_raw" />
+	        <remap from="cmd_vel" to="nav_vel" />
+			<remap from="map" to="/map"/>
+
+	        <rosparam file="$(find uol_cmp9767m_tutorial)/config/costmap_common_params.yaml" command="load" ns="global_costmap"/>
+	        <rosparam file="$(find uol_cmp9767m_tutorial)/config/costmap_common_params.yaml" command="load" ns="local_costmap"/>
+	        <rosparam file="$(find uol_cmp9767m_tutorial)/config/global_costmap_params.yaml" command="load"/>
+	        <rosparam file="$(find uol_cmp9767m_tutorial)/config/local_costmap_params.yaml" command="load"/>
+	        <rosparam file="$(find uol_cmp9767m_tutorial)/config/planners.yaml" command="load"/>
+		</node> 
+	</group>
+
+    <arg name="robot_name" default="thorvald_001" />
+
+
+  <node pkg="topological_navigation" type="map_manager2.py" name="topological_map_manager" args="$(arg file)" respawn="true"/>
+
+  <group ns="$(arg robot_name)">
+
+    <node pkg="topological_navigation" name="topological_localisation" type="localisation.py" output="screen" respawn="true">
+      <param name="base_frame" value="$(arg base_frame)"/>
+      <remap from="topological_map_2" to="/topological_map_2"/>
+    </node>
+    
+    <node pkg="topological_navigation" name="topological_navigation" type="navigation.py" output="screen" respawn="true">
+      <param name="move_base_planner" type="str" value="$(arg move_base_planner)"/>
+      <remap from="topological_map_2" to="/topological_map_2"/>
+      <remap from="/closest_edges" to="closest_edges"/>
+    </node>
+
+    <node pkg="topological_navigation" type="visualise_map.py" name="visualise_map" respawn="true">
+      <remap from="topological_map_2" to="/topological_map_2"/>
+      <remap from="topological_map" to="/topological_map"/>
+      <remap from="/topological_navigation/Route" to="topological_navigation/Route"/>
+    </node>
+  </group>
+
+</launch>
